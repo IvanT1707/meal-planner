@@ -12,6 +12,7 @@
     body { font-family: Onest, system-ui, sans-serif; background: var(--bg); color: var(--ink); }
     .app-shell { max-width: 1180px; }
     .navbar, .panel, .plan-day, .shopping-card { border: 1px solid #d5e2df; border-radius: .75rem; background: #fff; }
+    .plan-day { padding: 1rem; }
     .navbar { background: var(--ink); color: #fff; }
     .navbar-brand { color: #fff; }
     .nav-tabs .nav-link { color: #4d6660; }
@@ -85,15 +86,17 @@
         <div class="modal-body">
           <div id="product-form-error" class="alert alert-danger d-none" role="alert"></div>
           <div class="row g-3">
-            <div class="col-md-6"><label class="form-label">Назва</label><input name="name" class="form-control" required></div>
-            <div class="col-md-6"><label class="form-label">Категорія</label>
-              <select id="category" name="category" class="form-select">{% for category in category_options %}<option value="{{ category.key }}" data-recommended-storage="{{ category.recommended_storage }}" {{ "selected" if category.key == "produce_hard" }}>{{ category.label }}</option>{% endfor %}</select>
+            <div class="col-md-6"><label class="form-label">Інгредієнт</label>
+              <select id="ingredient_id" name="ingredient_id" class="form-select" required>
+                {% for ingredient in ingredients %}<option value="{{ ingredient.id }}" data-unit="{{ ingredient.default_unit }}" data-category="{{ ingredient.default_category }}" data-recommended-storage="{{ category_options | selectattr('key', 'equalto', ingredient.default_category) | map(attribute='recommended_storage') | first }}">{{ ingredient.name|capitalize }}</option>{% endfor %}
+              </select>
             </div>
+            <div class="col-md-3"><label class="form-label">Категорія</label><input id="category-display" class="form-control" readonly></div>
+            <div class="col-md-3"><label class="form-label">Одиниця</label><input id="unit-display" class="form-control" readonly></div>
             <div class="col-md-6"><label class="form-label">Місце зберігання</label>
               <select id="storage_location" name="storage_location" class="form-select">{% for key, label in storage_locations.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select>
             </div>
             <div class="col-6 col-md-3"><label class="form-label">Кількість</label><input name="quantity" type="number" step="any" min="0.001" class="form-control" required></div>
-            <div class="col-6 col-md-3"><label class="form-label">Одиниця</label><select name="unit" class="form-select"><option>шт</option><option>г</option><option>мл</option></select></div>
             <div class="col-md-6"><label class="form-label">Придатний до</label><input name="expires_on" type="date" class="form-control" required></div>
             <div class="col-md-6"><label class="form-label">Відкрито (необов'язково)</label><input name="opened_on" type="date" max="{{ today }}" class="form-control"></div>
           </div>
@@ -106,27 +109,31 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  const categorySelect = document.getElementById("category");
+  const ingredientSelect = document.getElementById("ingredient_id");
+  const categoryDisplay = document.getElementById("category-display");
+  const unitDisplay = document.getElementById("unit-display");
   const storageSelect = document.getElementById("storage_location");
   const productForm = document.getElementById("product-form");
   const productModal = document.getElementById("product-modal");
   const productFormError = document.getElementById("product-form-error");
 
-  function applyRecommendedStorage() {
-    const recommended = categorySelect.selectedOptions[0].dataset.recommendedStorage;
-    storageSelect.value = recommended;
+  function applyIngredientDefaults() {
+    const option = ingredientSelect.selectedOptions[0];
+    categoryDisplay.value = option.dataset.category;
+    unitDisplay.value = option.dataset.unit;
+    storageSelect.value = option.dataset.recommendedStorage;
   }
   function clearProductError() {
     productFormError.textContent = "";
     productFormError.classList.add("d-none");
   }
-  categorySelect.addEventListener("change", applyRecommendedStorage);
+  ingredientSelect.addEventListener("change", applyIngredientDefaults);
   productForm.addEventListener("submit", clearProductError);
-  productForm.addEventListener("reset", () => requestAnimationFrame(applyRecommendedStorage));
+  productForm.addEventListener("reset", () => requestAnimationFrame(applyIngredientDefaults));
   productForm.addEventListener("htmx:afterRequest", (event) => {
     if (event.detail.successful) {
       productForm.reset();
-      applyRecommendedStorage();
+      applyIngredientDefaults();
       bootstrap.Modal.getInstance(productModal).hide();
     }
   });
@@ -139,7 +146,7 @@
       bootstrap.Modal.getOrCreateInstance(productModal).show();
     }
   });
-  applyRecommendedStorage();
+  applyIngredientDefaults();
 </script>
 </body>
 </html>

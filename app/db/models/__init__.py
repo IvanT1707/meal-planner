@@ -1,3 +1,4 @@
-from .product import Product
+from .ingredient import Ingredient
+from .inventory_batch import InventoryBatch
 
-__all__ = ["Product"]
+__all__ = ["Ingredient", "InventoryBatch"]

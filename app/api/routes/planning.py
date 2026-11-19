@@ -18,12 +18,13 @@ MEAL_LABELS = {"breakfast": "Сніданок", "lunch": "Обід", "dinner": "
 def aggregate_stock(rows):
     grouped = {}
     for row in rows:
-        product = row["p"]
-        key = (product.name, product.unit)
-        if key not in grouped:
-            grouped[key] = [0, row["u"]]
-        grouped[key][0] += product.quantity
-        grouped[key][1] = max(grouped[key][1], row["u"])
+        ingredient_name = row["ingredient"].name
+        for batch in row["batches"]:
+            key = (ingredient_name, batch["unit"])
+            if key not in grouped:
+                grouped[key] = [0, batch["u"]]
+            grouped[key][0] += batch["quantity"]
+            grouped[key][1] = max(grouped[key][1], batch["u"])
 
     stock = {}
     for (name, unit), (quantity, current_urgency) in grouped.items():

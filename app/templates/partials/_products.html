@@ -17,15 +17,31 @@
     <tbody>
     {% for r in rows %}
       <tr>
-        <td>{{ r.p.name|capitalize }}{% if r.p.opened_on %} <span class="text-muted small">відкрито</span>{% endif %}</td>
+        <td>{{ r.ingredient.name|capitalize }}</td>
         <td class="text-nowrap"><span class="badge text-bg-light">{{ r.storage_label }}</span></td>
-        <td>{{ "%g"|format(r.p.quantity) }} {{ r.p.unit }}</td>
-        <td>{{ r.p.expires_on.strftime("%d.%m") }} <span class="text-muted small">({{ r.days }} дн.)</span></td>
+        <td>{{ "%g"|format(r.quantity) }} {{ r.unit }}</td>
+        <td>{{ r.batches[0].expires_on.strftime("%d.%m") }} <span class="text-muted small">({{ r.batches[0].days }} дн.)</span></td>
         <td>
           <div class="urg"><div class="urg-bar {{ 'hi' if r.u >= 0.7 else 'mid' if r.u >= 0.35 else 'lo' }}" style="width: {{ (r.u * 100)|round|int }}%"></div></div>
           <span class="small">{{ "%.2f"|format(r.u) }} · {{ r.reason }}</span>
         </td>
-        <td class="text-end"><button class="btn btn-sm btn-outline-secondary" hx-delete="/products/{{ r.p.id }}" hx-target="#inventory-content">Видалити</button></td>
+        <td class="text-end">
+          {% if r.batches|length == 1 %}
+          <button class="btn btn-sm btn-outline-secondary" hx-delete="/products/{{ r.batches[0].id }}" hx-target="#inventory-content">Видалити</button>
+          {% else %}
+          <details>
+            <summary class="small text-muted">Партії ({{ r.batches|length }})</summary>
+            <div class="text-start mt-2">
+              {% for batch in r.batches %}
+              <div class="small border-top py-1">
+                {{ "%g"|format(batch.quantity) }} {{ batch.unit }} · до {{ batch.expires_on.strftime("%d.%m") }} · {{ batch.storage_label }}
+                <button class="btn btn-link btn-sm p-0" hx-delete="/products/{{ batch.id }}" hx-target="#inventory-content">Видалити</button>
+              </div>
+              {% endfor %}
+            </div>
+          </details>
+          {% endif %}
+        </td>
       </tr>
     {% endfor %}
     </tbody>

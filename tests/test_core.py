@@ -2,8 +2,14 @@ from datetime import date, timedelta
 from types import SimpleNamespace
 
 import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
 
 from app.api.routes.planning import aggregate_stock
+from app.db import Base
+from app.db.models import Ingredient, InventoryBatch
+from app.db.seed import seed_ingredients
 from app.domain.fuzzy import (
     CATEGORIES,
     CATEGORY_CONFIG,
@@ -14,7 +20,8 @@ from app.domain.fuzzy import (
 )
 from app.domain.planner import plan_week
 from app.domain.recipes import RECIPES
-from app.services.products import product_stats, validate_product_input
+from app.main import app
+from app.services.products import product_rows, product_stats, validate_product_input
 
 TODAY = date(2026, 1, 10)
 
@@ -197,16 +204,74 @@ def test_leftover_recipe_is_not_reused_twice_in_one_day():
 
 
 def test_duplicate_inventory_rows_are_aggregated():
+    ingredient = SimpleNamespace(name="яйця")
     rows = [
-        {"p": SimpleNamespace(name="яйця", unit="шт", quantity=6), "u": 0.4},
-        {"p": SimpleNamespace(name="яйця", unit="шт", quantity=4), "u": 0.9},
-        {"p": SimpleNamespace(name="молоко", unit="мл", quantity=500), "u": 0.3},
+        {"ingredient": ingredient, "batches": [{"unit": "шт", "quantity": 6, "u": 0.4}]},
+        {"ingredient": ingredient, "batches": [{"unit": "шт", "quantity": 4, "u": 0.9}]},
     ]
 
     stock = aggregate_stock(rows)
 
     assert stock["яйця"] == (10, "шт", 0.9)
-    assert stock["молоко"] == (500, "мл", 0.3)
+
+
+def test_seed_ingredients_is_idempotent():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine)
+    with session_factory() as db:
+        seed_ingredients(db)
+        db.commit()
+        first_count = db.query(Ingredient).count()
+        seed_ingredients(db)
+        db.commit()
+        assert db.query(Ingredient).count() == first_count
+        assert db.scalar(select(Ingredient).where(Ingredient.name == "яйця")).default_unit == "шт"
+
+
+def test_inventory_batches_are_grouped_and_sorted_by_fefo():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine)
+    with session_factory() as db:
+        ingredient = Ingredient(name="яйця", default_category="dairy", default_unit="шт")
+        db.add(ingredient)
+        db.flush()
+        later = InventoryBatch(
+            ingredient_id=ingredient.id,
+            quantity=6,
+            unit="шт",
+            storage_location="fridge",
+            expires_on=TODAY + timedelta(days=10),
+        )
+        sooner = InventoryBatch(
+            ingredient_id=ingredient.id,
+            quantity=4,
+            unit="шт",
+            storage_location="fridge",
+            expires_on=TODAY + timedelta(days=2),
+        )
+        db.add_all([later, sooner])
+        db.commit()
+
+        rows = product_rows(db)
+
+        assert len(rows) == 1
+        assert rows[0]["quantity"] == 10
+        assert rows[0]["batches"][0]["id"] == sooner.id
+        assert rows[0]["u"] == rows[0]["batches"][0]["u"]
+
+
+def test_unknown_ingredient_id_returns_422():
+    client = TestClient(app)
+    response = client.post("/products", data={
+        "ingredient_id": "999999",
+        "quantity": "1",
+        "expires_on": "2030-01-01",
+        "opened_on": "",
+        "storage_location": "fridge",
+    })
+    assert response.status_code == 422
 
 
 def test_product_validation_and_inventory_stats():

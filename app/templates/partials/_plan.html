@@ -5,7 +5,6 @@
       <article class="plan-day">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h3 class="h6 mb-0">{{ label }}</h3>
-          <span class="text-muted small">3 прийоми</span>
         </div>
         {% for slot in day.slots %}
         <div class="meal-row">
@@ -14,7 +13,7 @@
             <div class="d-flex align-items-center gap-2 flex-wrap">
               <strong>{{ slot.recipe }}</strong>
               {% if slot.is_leftover %}
-              <span class="badge text-bg-secondary">Залишок · порція {{ slot.portion_number }} з {{ slot.servings }} (~{{ slot.portion_weight_g }} г)</span>
+              <span class="badge text-bg-secondary">Залишок · {{ slot.portion_number }}-га з {{ slot.servings }} (~{{ slot.portion_weight_g }} г)</span>
               {% else %}
               <span class="badge text-bg-light">Готувати · {{ slot.servings }} порц. (~{{ slot.total_weight_g }} г)</span>
               {% endif %}
