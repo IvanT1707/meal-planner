@@ -12,6 +12,7 @@ from app.services.products import product_rows
 
 router = APIRouter()
 WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"]
+MEAL_LABELS = {"breakfast": "Сніданок", "lunch": "Обід", "dinner": "Вечеря"}
 
 
 @router.get("/plan")
@@ -30,5 +31,7 @@ def plan(request: Request, db: Session = Depends(get_db)):
         for day, day_plan in enumerate(days)
     ]
     return templates.TemplateResponse(
-        request, "partials/_plan.html", {"days": labelled, "shopping": shopping}
+        request,
+        "partials/_plan.html",
+        {"days": labelled, "shopping": shopping, "meal_labels": MEAL_LABELS},
     )

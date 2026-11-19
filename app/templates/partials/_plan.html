@@ -3,9 +3,18 @@
     <ul class="list-group">
       {% for label, d in days %}
       <li class="list-group-item">
-        <div class="d-flex justify-content-between"><strong>{{ d.recipe }}</strong><span class="text-muted">{{ label }}</span></div>
-        {% if d.rescued %}<div class="small text-success">Рятує: {{ d.rescued|join(", ") }}</div>{% endif %}
-        {% if d.to_buy %}<div class="small text-muted">Докупити: {% for n, (q, u) in d.to_buy.items() %}{{ n }} {{ "%g"|format(q) }} {{ u }}{{ ", " if not loop.last }}{% endfor %}</div>{% endif %}
+        <div class="d-flex justify-content-between mb-2"><strong>{{ label }}</strong><span class="text-muted">3 прийоми їжі</span></div>
+        {% for slot in d.slots %}
+        <div class="border-top pt-2 mt-2">
+          <div class="d-flex justify-content-between">
+            <span class="text-muted small">{{ meal_labels[slot.meal_type] }}</span>
+            <strong>{{ slot.recipe }}</strong>
+            {% if slot.is_leftover %}<span class="badge text-bg-secondary">Залишок</span>{% endif %}
+          </div>
+          {% if slot.priority_ingredients %}<div class="small text-success">Пріоритетні інгредієнти: {{ slot.priority_ingredients|join(", ") }}</div>{% endif %}
+          {% if slot.to_buy %}<div class="small text-muted">Докупити: {% for n, (q, u) in slot.to_buy.items() %}{{ n }} {{ "%g"|format(q) }} {{ u }}{{ ", " if not loop.last }}{% endfor %}</div>{% endif %}
+        </div>
+        {% endfor %}
       </li>
       {% endfor %}
     </ul>

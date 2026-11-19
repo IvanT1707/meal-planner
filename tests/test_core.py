@@ -121,14 +121,43 @@ def test_planner_uses_urgent_products_first():
         "картопля": (10, "шт", 0.05), "курка": (500, "г", 0.05), "сметана": (100, "г", 0.05),
     }
     plans, _ = plan_week(RECIPES, stock, days=1)
-    assert plans[0].recipe in {"Омлет з молоком", "Млинці"}
-    assert "яйця" in plans[0].rescued
+    breakfast = plans[0].slots[0]
+    assert breakfast.meal_type == "breakfast"
+    assert breakfast.recipe in {"Омлет з молоком", "Млинці"}
+    assert "яйця" in breakfast.priority_ingredients
 
 
 def test_planner_builds_shopping_list_and_does_not_overspend_stock():
     stock = {"яйця": (3, "шт", 0.9), "молоко": (100, "мл", 0.9)}
     plans, shopping = plan_week(RECIPES, stock, days=7)
     assert len(plans) == 7
-    used_eggs = sum(1 for d in plans if "яйця" in d.rescued)
-    assert used_eggs <= 1  # 3 яйця вистачає лише на один омлет
+    assert sum(len(day.slots) for day in plans) == 21
     assert shopping
+
+
+def test_planner_creates_three_meal_slots_matching_recipe_types():
+    recipes_by_name = {recipe["name"]: recipe for recipe in RECIPES}
+    plans, _ = plan_week(RECIPES, {}, days=7)
+
+    assert len(plans) == 7
+    for day in plans:
+        assert [slot.meal_type for slot in day.slots] == ["breakfast", "lunch", "dinner"]
+        for slot in day.slots:
+            assert slot.meal_type in recipes_by_name[slot.recipe]["meal_types"]
+
+
+def test_batch_cooking_uses_leftover_on_next_day_without_rescanning_stock():
+    recipes = [
+        {"name": "Тестовий сніданок", "meal_types": ["breakfast"], "servings": 1, "keeps_days": 1, "ingredients": {}},
+        {"name": "Тестовий борщ", "meal_types": ["lunch"], "servings": 2, "keeps_days": 3, "ingredients": {"капуста": (2, "г")}},
+        {"name": "Тестова вечеря", "meal_types": ["dinner"], "servings": 1, "keeps_days": 1, "ingredients": {}},
+    ]
+    stock = {"капуста": (2, "г", 0.9)}
+
+    plans, shopping = plan_week(recipes, stock, days=2)
+
+    first_lunch, second_lunch = plans[0].slots[1], plans[1].slots[1]
+    assert first_lunch.recipe == second_lunch.recipe == "Тестовий борщ"
+    assert first_lunch.is_leftover is False
+    assert second_lunch.is_leftover is True
+    assert shopping == {}
