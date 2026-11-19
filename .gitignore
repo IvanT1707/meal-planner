@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Локальна БД та секрети
+fridge.db
+*.sqlite3
+.env
+
+# IDE
+.vscode/
+.idea/

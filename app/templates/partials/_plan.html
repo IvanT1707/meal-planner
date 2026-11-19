@@ -1,0 +1,19 @@
+<div class="row g-3">
+  <div class="col-lg-7">
+    <ul class="list-group">
+      {% for label, d in days %}
+      <li class="list-group-item">
+        <div class="d-flex justify-content-between"><strong>{{ d.recipe }}</strong><span class="text-muted">{{ label }}</span></div>
+        {% if d.rescued %}<div class="small text-success">Рятує: {{ d.rescued|join(", ") }}</div>{% endif %}
+        {% if d.to_buy %}<div class="small text-muted">Докупити: {% for n, (q, u) in d.to_buy.items() %}{{ n }} {{ "%g"|format(q) }} {{ u }}{{ ", " if not loop.last }}{% endfor %}</div>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="col-lg-5">
+    <h3 class="h6">Список докупівлі</h3>
+    {% if shopping %}
+    <ul class="list-unstyled mb-0">{% for n, (q, u) in shopping.items() %}<li>{{ n|capitalize }} — {{ "%g"|format(q) }} {{ u }}</li>{% endfor %}</ul>
+    {% else %}<p class="text-muted">Усе потрібне вже є вдома.</p>{% endif %}
+  </div>
+</div>
