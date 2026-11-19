@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from app.domain.fuzzy import CATEGORIES, urgency, urgency_label
+from app.domain.fuzzy import CATEGORIES, CATEGORY_CONFIG, STORAGE_LOCATIONS, urgency, urgency_label
 from app.domain.planner import plan_week
 from app.domain.recipes import RECIPES
 
@@ -32,6 +32,19 @@ def test_categories_are_foodkeeper_based():
     }
 
 
+def test_categories_have_recommended_storage():
+    assert {key: config.recommended_storage for key, config in CATEGORY_CONFIG.items()} == {
+        "meat_fish": "fridge",
+        "dairy": "fridge",
+        "produce_soft": "fridge",
+        "produce_hard": "pantry",
+        "bakery": "pantry",
+        "prepared": "fridge",
+        "pantry": "pantry",
+    }
+    assert set(STORAGE_LOCATIONS) == {"fridge", "freezer", "pantry"}
+
+
 def test_opened_meat_is_more_urgent_than_opened_pantry():
     chicken = u(30, opened_ago=2, cat="meat_fish")
     buckwheat = u(30, opened_ago=2, cat="pantry")
@@ -42,6 +55,36 @@ def test_opened_meat_is_more_urgent_than_opened_pantry():
 def test_opened_product_past_safe_term_is_urgent_despite_packaging_date():
     assert u(30, opened_ago=2, cat="meat_fish") == 1.0
     assert urgency_label(u(30, opened_ago=2, cat="meat_fish")) == "Терміново"
+
+
+def test_freezer_slows_urgency():
+    frozen_chicken = urgency(
+        TODAY + timedelta(days=30),
+        TODAY - timedelta(days=2),
+        "meat_fish",
+        today=TODAY,
+        storage_location="freezer",
+    )
+    refrigerated_chicken = urgency(
+        TODAY + timedelta(days=30),
+        TODAY - timedelta(days=2),
+        "meat_fish",
+        today=TODAY,
+        storage_location="fridge",
+    )
+    assert frozen_chicken < 0.35
+    assert frozen_chicken < refrigerated_chicken
+
+
+def test_perishable_product_in_pantry_is_critical():
+    milk = urgency(
+        TODAY + timedelta(days=30),
+        TODAY,
+        "dairy",
+        today=TODAY,
+        storage_location="pantry",
+    )
+    assert milk == 1.0
 
 
 def test_labels():

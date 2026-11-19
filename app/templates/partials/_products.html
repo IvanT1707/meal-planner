@@ -5,7 +5,7 @@
     <tbody>
     {% for r in rows %}
       <tr>
-        <td>{{ r.p.name|capitalize }}{% if r.p.opened_on %} <span class="text-muted small">відкрито</span>{% endif %}</td>
+        <td>{{ r.p.name|capitalize }} <span class="badge text-bg-light">{{ r.storage_label }}</span>{% if r.p.opened_on %} <span class="text-muted small">відкрито</span>{% endif %}</td>
         <td>{{ "%g"|format(r.p.quantity) }} {{ r.p.unit }}</td>
         <td>{{ r.p.expires_on.strftime("%d.%m") }} <span class="text-muted small">({{ r.days }} дн.)</span></td>
         <td>

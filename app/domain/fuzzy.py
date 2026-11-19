@@ -17,23 +17,31 @@ class ProductCategory:
     label: str
     max_open_days: int
     perishability_factor: float
+    recommended_storage: str
 
 
 # 14 днів — нейтральна шкала для терміну на упаковці. Коротший FoodKeeper-
 # орієнтир робить однакову кількість днів до expiry більш терміновою.
 _REFERENCE_OPEN_DAYS = 14
 PRODUCT_CATEGORIES = (
-    ProductCategory("meat_fish", "М'ясо, птиця та риба", 2, 2 / _REFERENCE_OPEN_DAYS),
-    ProductCategory("dairy", "Молочні продукти та яйця", 4, 4 / _REFERENCE_OPEN_DAYS),
-    ProductCategory("produce_soft", "Швидкопсувні овочі, зелень, гриби, ягоди", 3, 3 / _REFERENCE_OPEN_DAYS),
-    ProductCategory("produce_hard", "Тверді овочі та фрукти", 14, 1.0),
-    ProductCategory("bakery", "Хлібобулочні вироби", 4, 4 / _REFERENCE_OPEN_DAYS),
-    ProductCategory("prepared", "Готові страви та відкриті соуси", 4, 4 / _REFERENCE_OPEN_DAYS),
-    ProductCategory("pantry", "Бакалія: крупи, борошно, макарони", 60, 60 / _REFERENCE_OPEN_DAYS),
+    ProductCategory("meat_fish", "М'ясо, птиця та риба", 2, 2 / _REFERENCE_OPEN_DAYS, "fridge"),
+    ProductCategory("dairy", "Молочні продукти та яйця", 4, 4 / _REFERENCE_OPEN_DAYS, "fridge"),
+    ProductCategory("produce_soft", "Швидкопсувні овочі, зелень, гриби, ягоди", 3, 3 / _REFERENCE_OPEN_DAYS, "fridge"),
+    ProductCategory("produce_hard", "Тверді овочі та фрукти", 14, 1.0, "pantry"),
+    ProductCategory("bakery", "Хлібобулочні вироби", 4, 4 / _REFERENCE_OPEN_DAYS, "pantry"),
+    ProductCategory("prepared", "Готові страви та відкриті соуси", 4, 4 / _REFERENCE_OPEN_DAYS, "fridge"),
+    ProductCategory("pantry", "Бакалія: крупи, борошно, макарони", 60, 60 / _REFERENCE_OPEN_DAYS, "pantry"),
 )
 CATEGORY_CONFIG = {category.key: category for category in PRODUCT_CATEGORIES}
 CATEGORIES = {category.key: category.label for category in PRODUCT_CATEGORIES}
 DEFAULT_CATEGORY = "produce_hard"
+STORAGE_LOCATIONS = {
+    "fridge": "Холодильник",
+    "freezer": "Морозильна камера",
+    "pantry": "Комора / кімнатна температура",
+}
+FREEZER_SPOILAGE_RATE = 0.1
+ROOM_TEMPERATURE_CRITICAL_CATEGORIES = {"meat_fish", "dairy", "prepared"}
 
 
 def _up(x, a, b):
@@ -82,17 +90,27 @@ def _open_terms(days_open, max_open_days):
     }
 
 
-def urgency(expires_on, opened_on=None, category=DEFAULT_CATEGORY, today=None):
+def urgency(expires_on, opened_on=None, category=DEFAULT_CATEGORY, today=None, storage_location=None):
     today = today or date.today()
     category_config = CATEGORY_CONFIG.get(category, CATEGORY_CONFIG[DEFAULT_CATEGORY])
+    storage_location = storage_location or category_config.recommended_storage
+    if category in ROOM_TEMPERATURE_CRITICAL_CATEGORIES and storage_location == "pantry":
+        return 1.0
+
     days_open = (today - opened_on).days if opened_on else None
+    storage_rate = FREEZER_SPOILAGE_RATE if storage_location == "freezer" else 1.0
     if days_open is not None:
-        open_share = days_open / category_config.max_open_days
+        open_share = days_open * storage_rate / category_config.max_open_days
         if open_share >= 0.9:
             return 1.0
 
-    effective = (expires_on - today).days * category_config.perishability_factor
-    d, o = _day_terms(effective), _open_terms(days_open, category_config.max_open_days)
+    effective = (
+        (expires_on - today).days
+        * category_config.perishability_factor
+        / storage_rate
+    )
+    effective_days_open = days_open * storage_rate if days_open is not None else None
+    d, o = _day_terms(effective), _open_terms(effective_days_open, category_config.max_open_days)
 
     num = den = 0.0
     for day_term, open_term, out in RULES:

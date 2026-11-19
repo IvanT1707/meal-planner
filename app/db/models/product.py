@@ -12,6 +12,7 @@ class Product(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     category: Mapped[str] = mapped_column(String(30), default="produce_hard")
+    storage_location: Mapped[str] = mapped_column(String(20), default="fridge")
     quantity: Mapped[float]
     unit: Mapped[str] = mapped_column(String(10))
     expires_on: Mapped[date]

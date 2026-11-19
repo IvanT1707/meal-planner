@@ -28,7 +28,15 @@
     <form class="row g-2" hx-post="/products" hx-target="#products" hx-on::after-request="this.reset()">
       <div class="col-md-4"><label class="form-label small">Назва</label><input name="name" class="form-control" required></div>
       <div class="col-md-4"><label class="form-label small">Тип</label>
-        <select name="category" class="form-select">{% for k, v in categories.items() %}<option value="{{ k }}" {{ "selected" if k == "produce_hard" }}>{{ v }}</option>{% endfor %}</select></div>
+        <select id="category" name="category" class="form-select">
+          {% for category in category_options %}
+          <option value="{{ category.key }}" data-recommended-storage="{{ category.recommended_storage }}" {{ "selected" if category.key == "produce_hard" }}>{{ category.label }}</option>
+          {% endfor %}
+        </select></div>
+      <div class="col-md-4"><label class="form-label small">Місце зберігання</label>
+        <select id="storage_location" name="storage_location" class="form-select">
+          {% for key, label in storage_locations.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+        </select></div>
       <div class="col-6 col-md-2"><label class="form-label small">Кількість</label><input name="quantity" type="number" step="any" min="0" class="form-control" required></div>
       <div class="col-6 col-md-2"><label class="form-label small">Одиниця</label>
         <select name="unit" class="form-select"><option>шт</option><option>г</option><option>мл</option></select></div>
@@ -54,5 +62,17 @@
     <div id="plan"><p class="text-muted mb-0">Натисніть «Скласти план», щоб отримати страви на 7 днів.</p></div>
   </section>
 </main>
+<script>
+  const categorySelect = document.getElementById("category");
+  const storageSelect = document.getElementById("storage_location");
+
+  function applyRecommendedStorage() {
+    const recommended = categorySelect.selectedOptions[0].dataset.recommendedStorage;
+    storageSelect.value = recommended;
+  }
+
+  categorySelect.addEventListener("change", applyRecommendedStorage);
+  applyRecommendedStorage();
+</script>
 </body>
 </html>
