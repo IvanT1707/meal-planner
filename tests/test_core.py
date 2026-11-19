@@ -1,13 +1,13 @@
 from datetime import date, timedelta
 
-from app.domain.fuzzy import urgency, urgency_label
+from app.domain.fuzzy import CATEGORIES, urgency, urgency_label
 from app.domain.planner import plan_week
 from app.domain.recipes import RECIPES
 
 TODAY = date(2026, 1, 10)
 
 
-def u(days, opened_ago=None, cat="medium"):
+def u(days, opened_ago=None, cat="produce_hard"):
     opened = TODAY - timedelta(days=opened_ago) if opened_ago is not None else None
     return urgency(TODAY + timedelta(days=days), opened, cat, today=TODAY)
 
@@ -25,8 +25,23 @@ def test_opened_is_more_urgent_than_sealed():
     assert u(5, opened_ago=4) > u(5)
 
 
-def test_perishable_is_more_urgent_than_durable():
-    assert u(4, cat="fast") > u(4, cat="slow")
+def test_categories_are_foodkeeper_based():
+    assert set(CATEGORIES) == {
+        "meat_fish", "dairy", "produce_soft", "produce_hard",
+        "bakery", "prepared", "pantry",
+    }
+
+
+def test_opened_meat_is_more_urgent_than_opened_pantry():
+    chicken = u(30, opened_ago=2, cat="meat_fish")
+    buckwheat = u(30, opened_ago=2, cat="pantry")
+    assert chicken >= 0.9
+    assert chicken > buckwheat
+
+
+def test_opened_product_past_safe_term_is_urgent_despite_packaging_date():
+    assert u(30, opened_ago=2, cat="meat_fish") == 1.0
+    assert urgency_label(u(30, opened_ago=2, cat="meat_fish")) == "Терміново"
 
 
 def test_labels():

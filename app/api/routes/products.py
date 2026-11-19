@@ -13,13 +13,13 @@ router = APIRouter()
 
 # назва, категорія, кількість, одиниця, днів до кінця терміну, днів тому відкрито
 DEMO = [
-    ("молоко", "fast", 500, "мл", 2, 1), ("яйця", "fast", 6, "шт", 6, None),
-    ("сир кисломолочний", "fast", 300, "г", 3, None), ("курка", "fast", 500, "г", 1, None),
-    ("гриби", "fast", 250, "г", 2, None), ("сметана", "fast", 200, "г", 5, 3),
-    ("картопля", "medium", 8, "шт", 20, None), ("морква", "medium", 4, "шт", 10, None),
-    ("цибуля", "medium", 3, "шт", 30, None), ("томати", "medium", 400, "г", 4, None),
-    ("огірки", "medium", 2, "шт", 4, None), ("гречка", "slow", 500, "г", 200, None),
-    ("борошно", "slow", 1000, "г", 150, None),
+    ("молоко", "dairy", 500, "мл", 2, 1), ("яйця", "dairy", 6, "шт", 6, None),
+    ("сир кисломолочний", "dairy", 300, "г", 3, None), ("курка", "meat_fish", 500, "г", 1, None),
+    ("гриби", "produce_soft", 250, "г", 2, None), ("сметана", "dairy", 200, "г", 5, 3),
+    ("картопля", "produce_hard", 8, "шт", 20, None), ("морква", "produce_hard", 4, "шт", 10, None),
+    ("цибуля", "produce_hard", 3, "шт", 30, None), ("томати", "produce_soft", 400, "г", 4, None),
+    ("огірки", "produce_soft", 2, "шт", 4, None), ("гречка", "pantry", 500, "г", 200, None),
+    ("борошно", "pantry", 1000, "г", 150, None),
 ]
 
 
@@ -30,7 +30,7 @@ def products_response(request: Request, db: Session):
 @router.post("/products")
 def add_product(
     request: Request,
-    name: str = Form(...), category: str = Form("medium"), quantity: float = Form(...),
+    name: str = Form(...), category: str = Form("produce_hard"), quantity: float = Form(...),
     unit: str = Form("шт"), expires_on: date = Form(...), opened_on: str = Form(""),
     db: Session = Depends(get_db),
 ):
