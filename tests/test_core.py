@@ -1,6 +1,13 @@
 from datetime import date, timedelta
 
-from app.domain.fuzzy import CATEGORIES, CATEGORY_CONFIG, STORAGE_LOCATIONS, urgency, urgency_label
+from app.domain.fuzzy import (
+    CATEGORIES,
+    CATEGORY_CONFIG,
+    STORAGE_LOCATIONS,
+    urgency,
+    urgency_label,
+    urgency_reason,
+)
 from app.domain.planner import plan_week
 from app.domain.recipes import RECIPES
 
@@ -55,6 +62,21 @@ def test_opened_meat_is_more_urgent_than_opened_pantry():
 def test_opened_product_past_safe_term_is_urgent_despite_packaging_date():
     assert u(30, opened_ago=2, cat="meat_fish") == 1.0
     assert urgency_label(u(30, opened_ago=2, cat="meat_fish")) == "Терміново"
+
+
+def test_demo_products_have_calibrated_urgency_zones():
+    tomatoes = u(4, cat="produce_soft")
+    eggs = u(6, cat="dairy")
+    assert 0.35 <= tomatoes < 0.70
+    assert 0.35 <= eggs < 0.70
+
+
+def test_urgency_reasons_explain_main_cases():
+    assert urgency_reason(TODAY - timedelta(days=1), None, "dairy", "fridge", TODAY) == "Прострочено"
+    assert urgency_reason(TODAY + timedelta(days=30), None, "dairy", "pantry", TODAY) == "Зберігається поза холодильником"
+    assert urgency_reason(TODAY + timedelta(days=30), TODAY - timedelta(days=3), "dairy", "fridge", TODAY) == "Відкрито 3 із 4 дн."
+    assert urgency_reason(TODAY + timedelta(days=30), None, "dairy", "freezer", TODAY) == "У морозилці — запас тривалий"
+    assert urgency_reason(TODAY + timedelta(days=20), None, "dairy", "fridge", TODAY) == "Термін достатній"
 
 
 def test_freezer_slows_urgency():
