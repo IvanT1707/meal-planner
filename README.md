@@ -22,13 +22,17 @@ DATABASE_URL=postgresql+psycopg2://user:password@localhost:5432/meal_planner
 
 ## Структура
 
-| Файл | Призначення |
+| Папка/файл | Призначення |
 |---|---|
-| `app/fuzzy.py` | нечітка оцінка терміновості (тип Сугено, 7 правил) |
-| `app/planner.py` | жадібний планувальник (baseline) |
-| `app/recipes.py` | локальна база рецептів |
-| `app/db.py` | SQLAlchemy-модель `Product` |
-| `app/main.py` | FastAPI-маршрути (HTMX повертає HTML-фрагменти) |
+| `app/core/config.py` | конфігурація, зокрема `DATABASE_URL` |
+| `app/core/templates.py` | спільний екземпляр `Jinja2Templates` |
+| `app/db/` | SQLAlchemy Base, підключення до БД і моделі |
+| `app/domain/fuzzy.py` | нечітка оцінка терміновості (тип Сугено, 7 правил) |
+| `app/domain/planner.py` | жадібний планувальник (baseline) |
+| `app/domain/recipes.py` | локальна база рецептів |
+| `app/services/products.py` | підготовка продуктів для відображення |
+| `app/api/routes/` | FastAPI-маршрути для сторінки, продуктів і планування |
+| `app/main.py` | створення застосунку та підключення маршрутизаторів |
 | `tests/test_core.py` | тести нечіткої логіки й планувальника |
 
 ## Що показати керівнику

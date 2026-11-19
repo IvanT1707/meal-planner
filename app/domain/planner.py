@@ -1,10 +1,4 @@
-"""Базовий (жадібний) планувальник тижня.
-
-На кожен день обирається рецепт, що найкраще використовує термінові продукти.
-Це baseline: пізніше його замінить багатокритеріальна оптимізація, а результати
-порівнюватимуться. Припущення: одиниці в запасах і рецептах збігаються,
-інакше продукт вважається відсутнім.
-"""
+"""Базовий (жадібний) планувальник тижня."""
 from dataclasses import dataclass, field
 
 MISSING_PENALTY = 0.4
@@ -15,8 +9,8 @@ RESCUE_THRESHOLD = 0.35
 @dataclass
 class DayPlan:
     recipe: str
-    rescued: list = field(default_factory=list)  # термінові продукти, які буде використано
-    to_buy: dict = field(default_factory=dict)   # інгредієнт -> (кількість, одиниця)
+    rescued: list = field(default_factory=list)
+    to_buy: dict = field(default_factory=dict)
 
 
 def _score(recipe, stock, times_used):

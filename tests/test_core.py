@@ -1,8 +1,8 @@
 from datetime import date, timedelta
 
-from app.fuzzy import urgency, urgency_label
-from app.planner import plan_week
-from app.recipes import RECIPES
+from app.domain.fuzzy import urgency, urgency_label
+from app.domain.planner import plan_week
+from app.domain.recipes import RECIPES
 
 TODAY = date(2026, 1, 10)
 
