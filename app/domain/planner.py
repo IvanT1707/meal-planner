@@ -12,6 +12,11 @@ class MealSlot:
     meal_type: str
     recipe: str
     is_leftover: bool = False
+    ingredients: dict = field(default_factory=dict)
+    servings: int = 1
+    portion_number: int = 1
+    portion_weight_g: int = 0
+    total_weight_g: int = 0
     priority_ingredients: list = field(default_factory=list)
     to_buy: dict = field(default_factory=dict)
 
@@ -27,6 +32,7 @@ class _PreparedBatch:
     portions: int
     available_from: int
     expires_on: int
+    next_portion_number: int = 2
 
 
 def _score(recipe, stock, times_used):
@@ -40,12 +46,13 @@ def _score(recipe, stock, times_used):
     return gain - MISSING_PENALTY * missing - REPEAT_PENALTY * times_used.get(recipe["name"], 0)
 
 
-def _find_leftover(leftovers, meal_type, day_index):
+def _find_leftover(leftovers, meal_type, day_index, used_today):
     for leftover in leftovers:
         if (
             leftover.portions > 0
             and leftover.available_from <= day_index <= leftover.expires_on
             and meal_type in leftover.recipe["meal_types"]
+            and leftover.recipe["name"] not in used_today
         ):
             return leftover
     return None
@@ -77,28 +84,43 @@ def plan_week(recipes, stock, days=7):
 
     for day_index in range(days):
         day_plan = DayPlan()
-        cooked_today = set()
+        used_today = set()
         for meal_type in MEAL_TYPES:
-            leftover = _find_leftover(leftovers, meal_type, day_index)
+            leftover = _find_leftover(leftovers, meal_type, day_index, used_today)
             if leftover:
                 leftover.portions -= 1
-                day_plan.slots.append(MealSlot(meal_type, leftover.recipe["name"], is_leftover=True))
+                used_today.add(leftover.recipe["name"])
+                day_plan.slots.append(MealSlot(
+                    meal_type=meal_type,
+                    recipe=leftover.recipe["name"],
+                    is_leftover=True,
+                    servings=leftover.recipe["servings"],
+                    portion_number=leftover.next_portion_number,
+                    portion_weight_g=leftover.recipe.get("portion_weight_g", 0),
+                    total_weight_g=leftover.recipe["servings"] * leftover.recipe.get("portion_weight_g", 0),
+                ))
+                leftover.next_portion_number += 1
                 continue
 
             candidates = [
                 recipe for recipe in recipes
-                if meal_type in recipe["meal_types"] and recipe["name"] not in cooked_today
+                if meal_type in recipe["meal_types"] and recipe["name"] not in used_today
             ]
             if not candidates:
                 candidates = [recipe for recipe in recipes if meal_type in recipe["meal_types"]]
             best = max(candidates, key=lambda recipe: _score(recipe, stock, times_used))
             times_used[best["name"]] = times_used.get(best["name"], 0) + 1
-            cooked_today.add(best["name"])
+            used_today.add(best["name"])
             priority_ingredients = []
             to_buy = _consume_recipe(best, stock, shopping, priority_ingredients)
             day_plan.slots.append(MealSlot(
-                meal_type,
-                best["name"],
+                meal_type=meal_type,
+                recipe=best["name"],
+                ingredients=dict(best["ingredients"]),
+                servings=best["servings"],
+                portion_number=1,
+                portion_weight_g=best.get("portion_weight_g", 0),
+                total_weight_g=best["servings"] * best.get("portion_weight_g", 0),
                 priority_ingredients=priority_ingredients,
                 to_buy=to_buy,
             ))

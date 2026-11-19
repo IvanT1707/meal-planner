@@ -1,28 +1,47 @@
-<div class="row g-3">
-  <div class="col-lg-7">
-    <ul class="list-group">
-      {% for label, d in days %}
-      <li class="list-group-item">
-        <div class="d-flex justify-content-between mb-2"><strong>{{ label }}</strong><span class="text-muted">3 прийоми їжі</span></div>
-        {% for slot in d.slots %}
-        <div class="border-top pt-2 mt-2">
-          <div class="d-flex justify-content-between">
-            <span class="text-muted small">{{ meal_labels[slot.meal_type] }}</span>
-            <strong>{{ slot.recipe }}</strong>
-            {% if slot.is_leftover %}<span class="badge text-bg-secondary">Залишок</span>{% endif %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="vstack gap-3">
+      {% for label, day in days %}
+      <article class="plan-day">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h3 class="h6 mb-0">{{ label }}</h3>
+          <span class="text-muted small">3 прийоми</span>
+        </div>
+        {% for slot in day.slots %}
+        <div class="meal-row">
+          <span class="meal-label">{{ meal_labels[slot.meal_type] }}</span>
+          <div class="meal-content">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <strong>{{ slot.recipe }}</strong>
+              {% if slot.is_leftover %}
+              <span class="badge text-bg-secondary">Залишок · порція {{ slot.portion_number }} з {{ slot.servings }} (~{{ slot.portion_weight_g }} г)</span>
+              {% else %}
+              <span class="badge text-bg-light">Готувати · {{ slot.servings }} порц. (~{{ slot.total_weight_g }} г)</span>
+              {% endif %}
+            </div>
+            {% if not slot.is_leftover and slot.ingredients %}
+            <details class="small mt-1">
+              <summary class="text-muted">Склад страви</summary>
+              <span class="text-muted">
+                {% for name, (quantity, unit) in slot.ingredients.items() %}{{ name }} {{ "%g"|format(quantity) }} {{ unit }}{% if not loop.last %}; {% endif %}{% endfor %}
+              </span>
+            </details>
+            {% endif %}
+            {% if slot.priority_ingredients %}<div class="small text-success">Пріоритетні інгредієнти: {{ slot.priority_ingredients|join(", ") }}</div>{% endif %}
+            {% if slot.to_buy %}<div class="small text-muted">Докупити: {% for n, (q, u) in slot.to_buy.items() %}{{ n }} {{ "%g"|format(q) }} {{ u }}{{ ", " if not loop.last }}{% endfor %}</div>{% endif %}
           </div>
-          {% if slot.priority_ingredients %}<div class="small text-success">Пріоритетні інгредієнти: {{ slot.priority_ingredients|join(", ") }}</div>{% endif %}
-          {% if slot.to_buy %}<div class="small text-muted">Докупити: {% for n, (q, u) in slot.to_buy.items() %}{{ n }} {{ "%g"|format(q) }} {{ u }}{{ ", " if not loop.last }}{% endfor %}</div>{% endif %}
         </div>
         {% endfor %}
-      </li>
+      </article>
       {% endfor %}
-    </ul>
+    </div>
   </div>
-  <div class="col-lg-5">
-    <h3 class="h6">Список докупівлі</h3>
-    {% if shopping %}
-    <ul class="list-unstyled mb-0">{% for n, (q, u) in shopping.items() %}<li>{{ n|capitalize }} — {{ "%g"|format(q) }} {{ u }}</li>{% endfor %}</ul>
-    {% else %}<p class="text-muted">Усе потрібне вже є вдома.</p>{% endif %}
+  <div class="col-lg-4">
+    <aside class="shopping-card">
+      <h3 class="h6">Список докупівлі</h3>
+      {% if shopping %}
+      <ul class="list-unstyled mb-0">{% for n, (q, u) in shopping.items() %}<li>{{ n|capitalize }} — {{ "%g"|format(q) }} {{ u }}</li>{% endfor %}</ul>
+      {% else %}<p class="text-muted mb-0">Усе потрібне вже є вдома.</p>{% endif %}
+    </aside>
   </div>
 </div>

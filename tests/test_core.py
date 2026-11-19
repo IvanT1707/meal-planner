@@ -1,5 +1,9 @@
 from datetime import date, timedelta
+from types import SimpleNamespace
 
+import pytest
+
+from app.api.routes.planning import aggregate_stock
 from app.domain.fuzzy import (
     CATEGORIES,
     CATEGORY_CONFIG,
@@ -10,6 +14,7 @@ from app.domain.fuzzy import (
 )
 from app.domain.planner import plan_week
 from app.domain.recipes import RECIPES
+from app.services.products import product_stats, validate_product_input
 
 TODAY = date(2026, 1, 10)
 
@@ -146,6 +151,15 @@ def test_planner_creates_three_meal_slots_matching_recipe_types():
             assert slot.meal_type in recipes_by_name[slot.recipe]["meal_types"]
 
 
+def test_recipes_define_portion_weights_and_slots_calculate_total_weight():
+    assert all(200 <= recipe["portion_weight_g"] <= 350 for recipe in RECIPES)
+    plans, _ = plan_week(RECIPES, {}, days=1)
+
+    for slot in plans[0].slots:
+        assert slot.portion_number == 1
+        assert slot.total_weight_g == slot.servings * slot.portion_weight_g
+
+
 def test_batch_cooking_uses_leftover_on_next_day_without_rescanning_stock():
     recipes = [
         {"name": "Тестовий сніданок", "meal_types": ["breakfast"], "servings": 1, "keeps_days": 1, "ingredients": {}},
@@ -160,4 +174,48 @@ def test_batch_cooking_uses_leftover_on_next_day_without_rescanning_stock():
     assert first_lunch.recipe == second_lunch.recipe == "Тестовий борщ"
     assert first_lunch.is_leftover is False
     assert second_lunch.is_leftover is True
+    assert first_lunch.portion_number == 1
+    assert second_lunch.portion_number == 2
+    assert first_lunch.total_weight_g == second_lunch.total_weight_g
+    assert first_lunch.ingredients == {"капуста": (2, "г")}
+    assert second_lunch.ingredients == {}
     assert shopping == {}
+
+
+def test_leftover_recipe_is_not_reused_twice_in_one_day():
+    recipes = [
+        {"name": "Сніданок", "meal_types": ["breakfast"], "servings": 1, "keeps_days": 1, "portion_weight_g": 200, "ingredients": {}},
+        {"name": "Рагу", "meal_types": ["lunch", "dinner"], "servings": 3, "keeps_days": 3, "portion_weight_g": 300, "ingredients": {"овочі": (3, "шт")}},
+        {"name": "Інша вечеря", "meal_types": ["dinner"], "servings": 1, "keeps_days": 1, "portion_weight_g": 250, "ingredients": {}},
+    ]
+    plans, _ = plan_week(recipes, {"овочі": (3, "шт", 0.9)}, days=2)
+
+    assert plans[0].slots[1].recipe == "Рагу"
+    assert plans[0].slots[2].recipe == "Інша вечеря"
+    assert plans[1].slots[1].is_leftover is True
+    assert plans[1].slots[2].recipe == "Інша вечеря"
+
+
+def test_duplicate_inventory_rows_are_aggregated():
+    rows = [
+        {"p": SimpleNamespace(name="яйця", unit="шт", quantity=6), "u": 0.4},
+        {"p": SimpleNamespace(name="яйця", unit="шт", quantity=4), "u": 0.9},
+        {"p": SimpleNamespace(name="молоко", unit="мл", quantity=500), "u": 0.3},
+    ]
+
+    stock = aggregate_stock(rows)
+
+    assert stock["яйця"] == (10, "шт", 0.9)
+    assert stock["молоко"] == (500, "мл", 0.3)
+
+
+def test_product_validation_and_inventory_stats():
+    with pytest.raises(ValueError, match="порожньою"):
+        validate_product_input("  ", 1, None, today=TODAY)
+    with pytest.raises(ValueError, match="більшою за нуль"):
+        validate_product_input("молоко", 0, None, today=TODAY)
+    with pytest.raises(ValueError, match="майбутньому"):
+        validate_product_input("молоко", 1, TODAY + timedelta(days=1), today=TODAY)
+
+    stats = product_stats([{"u": 0.9}, {"u": 0.5}, {"u": 0.1}])
+    assert stats == {"total": 3, "urgent": 1, "soon": 1}

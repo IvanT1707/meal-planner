@@ -1,13 +1,13 @@
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.templates import templates
 from app.db import get_db
 from app.db.models import Product
 from app.domain.fuzzy import CATEGORY_CONFIG, STORAGE_LOCATIONS
-from app.services.products import product_rows
+from app.services.products import product_rows, product_stats, validate_product_input
 
 
 router = APIRouter()
@@ -24,8 +24,18 @@ DEMO = [
 ]
 
 
-def products_response(request: Request, db: Session):
-    return templates.TemplateResponse(request, "partials/_products.html", {"rows": product_rows(db)})
+def products_response(request: Request, db: Session, storage=None):
+    rows = product_rows(db, storage)
+    return templates.TemplateResponse(
+        request,
+        "partials/_products.html",
+        {"rows": rows, "stats": product_stats(rows)},
+    )
+
+
+@router.get("/products")
+def list_products(request: Request, storage: str | None = None, db: Session = Depends(get_db)):
+    return products_response(request, db, storage)
 
 
 @router.post("/products")
@@ -36,11 +46,22 @@ def add_product(
     storage_location: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
+    opened_date = None
+    if opened_on:
+        try:
+            opened_date = date.fromisoformat(opened_on)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail="Дата відкриття має бути коректною датою.") from error
+    try:
+        validate_product_input(name, quantity, opened_date)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
     recommended_storage = CATEGORY_CONFIG.get(category, CATEGORY_CONFIG["produce_hard"]).recommended_storage
     selected_storage = storage_location if storage_location in STORAGE_LOCATIONS else recommended_storage
     db.add(Product(
         name=name.strip().lower(), category=category, quantity=quantity, unit=unit.strip(),
-        expires_on=expires_on, opened_on=date.fromisoformat(opened_on) if opened_on else None,
+        expires_on=expires_on, opened_on=opened_date,
         storage_location=selected_storage,
     ))
     db.commit()
@@ -59,6 +80,7 @@ def delete_product(product_id: int, request: Request, db: Session = Depends(get_
 @router.post("/demo")
 def load_demo(request: Request, db: Session = Depends(get_db)):
     today = date.today()
+    db.query(Product).delete()
     for name, category, storage_location, quantity, unit, days, opened_ago in DEMO:
         db.add(Product(
             name=name, category=category, storage_location=storage_location, quantity=quantity, unit=unit,
